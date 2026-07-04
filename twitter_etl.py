@@ -1,15 +1,23 @@
 import tweepy
 import pandas as pd 
 import json
+import os
 from datetime import datetime
 import s3fs 
+from xquik_export import load_xquik_rows
 
 def run_twitter_etl():
 
-    access_key = "" 
-    access_secret = "" 
-    consumer_key = ""
-    consumer_secret = ""
+    xquik_export_path = os.getenv("XQUIK_EXPORT_PATH", "").strip()
+    if xquik_export_path:
+        df = pd.DataFrame(load_xquik_rows(xquik_export_path))
+        df.to_csv(os.getenv("X_OUTPUT_PATH", "refined_tweets.csv"), index=False)
+        return df
+
+    access_key = os.getenv("TWITTER_ACCESS_KEY", "")
+    access_secret = os.getenv("TWITTER_ACCESS_SECRET", "")
+    consumer_key = os.getenv("TWITTER_CONSUMER_KEY", "")
+    consumer_secret = os.getenv("TWITTER_CONSUMER_SECRET", "")
 
 
     # Twitter authentication
@@ -27,7 +35,7 @@ def run_twitter_etl():
                             tweet_mode = 'extended'
                             )
 
-    list = []
+    tweet_rows = []
     for tweet in tweets:
         text = tweet._json["full_text"]
 
@@ -37,7 +45,8 @@ def run_twitter_etl():
                         'retweet_count' : tweet.retweet_count,
                         'created_at' : tweet.created_at}
         
-        list.append(refined_tweet)
+        tweet_rows.append(refined_tweet)
 
-    df = pd.DataFrame(list)
-    df.to_csv('refined_tweets.csv')
+    df = pd.DataFrame(tweet_rows)
+    df.to_csv(os.getenv("X_OUTPUT_PATH", "refined_tweets.csv"), index=False)
+    return df
